@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { useTranslationKeys } from '../../hooks/useTranslations';
 import { useTranslationStore } from '../../store/translationStore';
 import { TranslationKeyCard } from './TranslationKeyCard';
+import { ProjectAnalyticsCard } from './ProjectAnalyticsCard';
 import { Loader2 } from 'lucide-react';
 
 export function TranslationKeyManager() {
@@ -101,6 +102,11 @@ export function TranslationKeyManager() {
         <p className="text-stone-600 dark:text-stone-400 mt-1">
           {getHeaderSubtitle()}
         </p>
+        
+        {/* Analytics Card */}
+        {currentProject && (
+          <ProjectAnalyticsCard projectId={currentProject.id} />
+        )}
       </div>
 
       {/* Translation Keys List */}

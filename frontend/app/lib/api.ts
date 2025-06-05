@@ -180,6 +180,19 @@ export const projectApi = {
   // Remove language from project
   removeLanguage: async (projectId: string, languageCode: string): Promise<{ message: string }> => {
     return apiClient.delete(`/projects/${encodeURIComponent(projectId)}/languages/${encodeURIComponent(languageCode)}`);
+  },
+
+  // Get project analytics
+  getProjectAnalytics: async (projectId: string): Promise<{
+    project_id: string;
+    total_keys: number;
+    completion_stats: Record<string, {
+      translated: number;
+      total: number;
+      percentage: number;
+    }>;
+  }> => {
+    return apiClient.get(`/projects/${encodeURIComponent(projectId)}/analytics`);
   }
 };
 

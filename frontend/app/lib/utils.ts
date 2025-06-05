@@ -1,4 +1,5 @@
-// import { clsx, type ClassValue } from 'clsx';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 // Temporary fallback until clsx is installed
 type ClassValue = string | number | boolean | undefined | null | { [key: string]: any } | ClassValue[];
@@ -18,6 +19,10 @@ export function cn(...inputs: ClassValue[]) {
       return '';
     })
     .join(' ');
+}
+
+export function tw(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
 
 export function debounce<T extends (...args: any[]) => any>(

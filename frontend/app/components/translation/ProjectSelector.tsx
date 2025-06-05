@@ -18,7 +18,7 @@ export function ProjectSelector() {
 
   if (isLoading) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-2" role="status">
         <div className="h-4 bg-stone-200 dark:bg-stone-700 rounded animate-pulse"></div>
         <div className="h-8 bg-stone-100 dark:bg-stone-800 rounded animate-pulse"></div>
       </div>
