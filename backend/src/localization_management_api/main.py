@@ -350,3 +350,37 @@ async def get_project_stats(project_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/projects/{project_id}/analytics")
+async def get_project_analytics(project_id: str):
+    """Get translation completion analytics for a project"""
+    try:
+        project = await db_service.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        translation_keys = await db_service.get_translation_keys(project_id)
+        total_keys = len(translation_keys)
+        
+        # Calculate completion percentages for each language
+        completion_stats = {}
+        for lang in project.supported_languages:
+            translated_count = sum(
+                1 for key in translation_keys 
+                if lang in key.translations and key.translations[lang].value.strip()
+            )
+            completion_stats[lang] = {
+                "translated": translated_count,
+                "total": total_keys,
+                "percentage": (translated_count / total_keys * 100) if total_keys > 0 else 0
+            }
+        
+        return {
+            "project_id": project_id,
+            "total_keys": total_keys,
+            "completion_stats": completion_stats
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
