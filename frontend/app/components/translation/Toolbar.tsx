@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Search, Filter, X, Plus, Trash2 } from 'lucide-react';
+import { Search, Filter, X, Plus } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useTranslationStore } from '../../store/translationStore';
-import { useCategories, useDeleteTranslationKey } from '../../hooks/userTranslations';
+import { useCategories } from '../../hooks/userTranslations';
 import { debounce } from '../../lib/utils';
 
 export function Toolbar() {
@@ -13,12 +13,10 @@ export function Toolbar() {
     setFilter, 
     clearFilter, 
     setSearch, 
-    languages, 
-    selectedKeys, 
-    clearSelection 
+    languages,
+    currentProject
   } = useTranslationStore();
-  const { data: categories = [] } = useCategories();
-  const deleteKeyMutation = useDeleteTranslationKey();
+  const { data: categories = [] } = useCategories(currentProject?.id);
   const [showFilters, setShowFilters] = useState(false);
 
   // Debounced search to avoid too many updates
@@ -47,21 +45,6 @@ export function Toolbar() {
       : [...filter.languages, languageCode];
     
     setFilter({ languages: newLanguages });
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedKeys.length === 0) return;
-    
-    if (confirm(`Are you sure you want to delete ${selectedKeys.length} translation key(s)?`)) {
-      try {
-        await Promise.all(
-          selectedKeys.map(keyId => deleteKeyMutation.mutateAsync(keyId))
-        );
-        clearSelection();
-      } catch (error) {
-        console.error('Failed to delete keys:', error);
-      }
-    }
   };
 
   const activeFiltersCount = filter.categories.length + filter.languages.length;
@@ -112,33 +95,7 @@ export function Toolbar() {
           </Button>
         )}
 
-        {/* Bulk Actions */}
-        {selectedKeys.length > 0 && (
-          <>
-            <div className="h-6 w-px bg-stone-300 dark:bg-stone-600" />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDeleteSelected}
-              disabled={deleteKeyMutation.isPending}
-              className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400 shrink-0"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete ({selectedKeys.length})
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearSelection}
-              className="shrink-0"
-            >
-              Clear Selection
-            </Button>
-          </>
-        )}
-
         {/* Add Key Button */}
-        <div className="h-6 w-px bg-stone-300 dark:bg-stone-600" />
         <Button size="sm" className="shrink-0">
           <Plus className="h-4 w-4 mr-2" />
           Add Key

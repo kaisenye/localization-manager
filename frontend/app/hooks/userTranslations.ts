@@ -1,9 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { translationApi } from '../lib/api';
+import { translationApi, projectApi } from '../lib/api';
 import type { 
   TranslationKey, 
   CreateTranslationKeyRequest, 
-  UpdateTranslationRequest 
+  UpdateTranslationRequest,
+  Project,
+  CreateProjectRequest,
+  UpdateProjectRequest
 } from '../types/translation';
 
 // Query keys
@@ -16,17 +19,16 @@ export const translationKeys = {
   categories: () => [...translationKeys.all, 'categories'] as const,
 };
 
-// Get all translation keys
-export function useTranslationKeys() {
+// Translation Key Hooks
+export function useTranslationKeys(projectId?: string) {
   return useQuery({
-    queryKey: translationKeys.lists(),
-    queryFn: translationApi.getTranslationKeys,
+    queryKey: ['translationKeys', projectId],
+    queryFn: () => translationApi.getTranslationKeys(projectId),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 
-// Get single translation key
+// Get translation key by ID
 export function useTranslationKey(id: string) {
   return useQuery({
     queryKey: translationKeys.detail(id),
@@ -37,11 +39,11 @@ export function useTranslationKey(id: string) {
 }
 
 // Get categories
-export function useCategories() {
+export function useCategories(projectId?: string) {
   return useQuery({
-    queryKey: translationKeys.categories(),
-    queryFn: translationApi.getCategories,
-    staleTime: 10 * 60 * 1000, // Categories change less frequently
+    queryKey: ['categories', projectId],
+    queryFn: () => translationApi.getCategories(projectId),
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 
@@ -50,17 +52,28 @@ export function useCreateTranslationKey() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: translationApi.createTranslationKey,
+    mutationFn: (data: CreateTranslationKeyRequest & { projectId: string }) => 
+      translationApi.createTranslationKey(data),
     onSuccess: (newKey) => {
-      // Update the list cache
-      queryClient.setQueryData<TranslationKey[]>(
-        translationKeys.lists(),
-        (old) => old ? [...old, newKey] : [newKey]
-      );
-      
-      // Invalidate categories in case a new category was added
+      // Update the project-specific list cache
       queryClient.invalidateQueries({
-        queryKey: translationKeys.categories(),
+        queryKey: ['translationKeys', newKey.projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['translationKeys', undefined], // All keys
+      });
+      
+      // Invalidate categories for the project
+      queryClient.invalidateQueries({
+        queryKey: ['categories', newKey.projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['categories', undefined], // All categories
+      });
+      
+      // Invalidate projects to update translation counts
+      queryClient.invalidateQueries({
+        queryKey: ['projects'],
       });
     },
     onError: (error) => {
@@ -189,6 +202,60 @@ export function useDeleteTranslationKey() {
       queryClient.invalidateQueries({
         queryKey: translationKeys.categories(),
       });
+    },
+  });
+}
+
+// Project Hooks
+export function useProjects() {
+  return useQuery({
+    queryKey: ['projects'],
+    queryFn: () => projectApi.getProjects(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useProject(id: string) {
+  return useQuery({
+    queryKey: ['project', id],
+    queryFn: () => projectApi.getProject(id),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateProject() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: CreateProjectRequest) => projectApi.createProject(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+}
+
+export function useUpdateProject() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: UpdateProjectRequest) => projectApi.updateProject(data),
+    onSuccess: (updatedProject) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project', updatedProject.id] });
+    },
+  });
+}
+
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (id: string) => projectApi.deleteProject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['translationKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 } 

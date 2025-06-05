@@ -1,5 +1,19 @@
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  defaultLanguage: string;
+  supportedLanguages: string[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  translationKeyCount: number;
+  isActive: boolean;
+}
+
 export interface TranslationKey {
   id: string;
+  projectId: string; // Link to project
   key: string; // e.g., "button.save"
   category: string; // e.g., "buttons"
   description?: string;
@@ -23,6 +37,7 @@ export interface TranslationFilter {
   search: string;
   categories: string[];
   languages: string[];
+  projectId?: string; // Filter by project
   updatedBy?: string;
   dateRange?: {
     from: Date;
@@ -32,9 +47,10 @@ export interface TranslationFilter {
 
 export interface TranslationState {
   keys: TranslationKey[];
+  projects: Project[];
+  currentProject: Project | null;
   languages: Language[];
   filter: TranslationFilter;
-  selectedKeys: string[];
   editingKey: string | null;
   isLoading: boolean;
   error: string | null;
@@ -61,4 +77,19 @@ export interface TranslationKeyFormData {
   category: string;
   description: string;
   translations: Record<string, string>;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  description?: string;
+  defaultLanguage: string;
+  supportedLanguages: string[];
+}
+
+export interface UpdateProjectRequest {
+  id: string;
+  name?: string;
+  description?: string;
+  supportedLanguages?: string[];
+  isActive?: boolean;
 } 

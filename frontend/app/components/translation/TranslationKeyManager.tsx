@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { Copy, MoreHorizontal, Plus } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Copy, MoreHorizontal, Plus, Trash2, Check } from 'lucide-react';
 import { Button } from '../ui/button';
 import { TranslationEditor } from './TranslationEditor';
-import { useTranslationKeys } from '../../hooks/userTranslations';
+import { useTranslationKeys, useDeleteTranslationKey } from '../../hooks/userTranslations';
 import { useTranslationStore } from '../../store/translationStore';
 import { filterTranslationKeys } from '../../lib/utils';
 import type { TranslationKey } from '../../types/translation';
 
 export function TranslationKeyManager() {
-  const { data: allKeys = [], isLoading, error } = useTranslationKeys();
-  const { filter, languages, selectedKeys, selectKey, clearSelection } = useTranslationStore();
+  const { currentProject, filter, languages } = useTranslationStore();
+  const { data: allKeys = [], isLoading, error } = useTranslationKeys(currentProject?.id);
 
   // Filter keys based on current filter state
   const filteredKeys = useMemo(() => {
@@ -19,15 +19,6 @@ export function TranslationKeyManager() {
   }, [allKeys, filter]);
 
   const activeLanguages = languages.filter(lang => lang.isActive);
-
-  const handleSelectKey = (keyId: string, event: React.MouseEvent) => {
-    if (event.ctrlKey || event.metaKey) {
-      selectKey(keyId);
-    } else {
-      clearSelection();
-      selectKey(keyId);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -62,17 +53,30 @@ export function TranslationKeyManager() {
     );
   }
 
+  const getHeaderTitle = () => {
+    if (currentProject) {
+      return `${currentProject.name} - Translation Keys`;
+    }
+    return 'All Translation Keys';
+  };
+
+  const getHeaderSubtitle = () => {
+    if (currentProject) {
+      return `${filteredKeys.length} of ${allKeys.length} keys in this project`;
+    }
+    return `${filteredKeys.length} of ${allKeys.length} keys across all projects`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-stone-700 dark:text-stone-300">
-            Translation Keys
+            {getHeaderTitle()}
           </h2>
           <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
-            {filteredKeys.length} of {allKeys.length} keys
-            {selectedKeys.length > 0 && ` • ${selectedKeys.length} selected`}
+            {getHeaderSubtitle()}
           </p>
         </div>
       </div>
@@ -88,13 +92,18 @@ export function TranslationKeyManager() {
                   Clear Filters
                 </Button>
               </div>
-            ) : (
+            ) : currentProject ? (
               <div>
-                <p className="mb-2">No translation keys found</p>
+                <p className="mb-2">No translation keys found in this project</p>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Your First Key
                 </Button>
+              </div>
+            ) : (
+              <div>
+                <p className="mb-2">No translation keys found</p>
+                <p className="text-xs mb-4">Select a project from the sidebar to get started</p>
               </div>
             )}
           </div>
@@ -104,8 +113,6 @@ export function TranslationKeyManager() {
               key={translationKey.id}
               translationKey={translationKey}
               languages={activeLanguages}
-              isSelected={selectedKeys.includes(translationKey.id)}
-              onSelect={(event) => handleSelectKey(translationKey.id, event)}
             />
           ))
         )}
@@ -117,25 +124,39 @@ export function TranslationKeyManager() {
 interface TranslationKeyCardProps {
   translationKey: TranslationKey;
   languages: Array<{ code: string; name: string; nativeName: string }>;
-  isSelected: boolean;
-  onSelect: (event: React.MouseEvent) => void;
 }
 
 function TranslationKeyCard({ 
   translationKey, 
-  languages, 
-  isSelected, 
-  onSelect 
+  languages
 }: TranslationKeyCardProps) {
+  const [showActions, setShowActions] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const deleteKeyMutation = useDeleteTranslationKey();
+
+  const handleCopyId = async () => {
+    try {
+      await navigator.clipboard.writeText(translationKey.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy ID:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirm(`Are you sure you want to delete the translation key "${translationKey.key}"?`)) {
+      try {
+        await deleteKeyMutation.mutateAsync(translationKey.id);
+        setShowActions(false);
+      } catch (error) {
+        console.error('Failed to delete key:', error);
+      }
+    }
+  };
+
   return (
-    <div 
-      className={`border rounded-lg p-4 transition-all hover:shadow-md ${
-        isSelected 
-          ? 'border-stone-400 dark:border-stone-500 bg-stone-50 dark:bg-stone-800/50' 
-          : 'border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800'
-      }`}
-      onClick={onSelect}
-    >
+    <div className="border rounded-lg p-4 transition-all hover:shadow-md border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800">
       {/* Key Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
@@ -154,13 +175,39 @@ function TranslationKeyCard({
           )}
         </div>
         
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <Copy className="h-3 w-3" />
+        <div className="flex items-center gap-1 relative">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0"
+            onClick={handleCopyId}
+            title="Copy ID"
+          >
+            {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0"
+            onClick={() => setShowActions(!showActions)}
+            title="More actions"
+          >
             <MoreHorizontal className="h-3 w-3" />
           </Button>
+          
+          {/* Actions Dropdown */}
+          {showActions && (
+            <div className="absolute right-0 top-8 z-10 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md shadow-lg py-1 min-w-[120px]">
+              <button
+                onClick={handleDelete}
+                disabled={deleteKeyMutation.isPending}
+                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 disabled:opacity-50"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -183,6 +230,14 @@ function TranslationKeyCard({
           </div>
         ))}
       </div>
+      
+      {/* Click outside to close actions */}
+      {showActions && (
+        <div 
+          className="fixed inset-0 z-5" 
+          onClick={() => setShowActions(false)}
+        />
+      )}
     </div>
   );
 } 

@@ -4,7 +4,8 @@ import type {
   TranslationKey, 
   Language, 
   TranslationFilter, 
-  TranslationState 
+  TranslationState,
+  Project
 } from '../types/translation';
 
 interface TranslationStore extends TranslationState {
@@ -14,15 +15,17 @@ interface TranslationStore extends TranslationState {
   updateKey: (id: string, updates: Partial<TranslationKey>) => void;
   deleteKey: (id: string) => void;
   
+  // Project actions
+  setProjects: (projects: Project[]) => void;
+  setCurrentProject: (project: Project | null) => void;
+  addProject: (project: Project) => void;
+  updateProject: (id: string, updates: Partial<Project>) => void;
+  deleteProject: (id: string) => void;
+  
   // Filter actions
   setFilter: (filter: Partial<TranslationFilter>) => void;
   clearFilter: () => void;
   setSearch: (search: string) => void;
-  
-  // Selection actions
-  selectKey: (id: string) => void;
-  selectMultipleKeys: (ids: string[]) => void;
-  clearSelection: () => void;
   
   // Editing actions
   setEditingKey: (id: string | null) => void;
@@ -47,6 +50,8 @@ export const useTranslationStore = create<TranslationStore>()(
     (set, get) => ({
       // Initial state
       keys: [],
+      projects: [],
+      currentProject: null,
       languages: [
         { code: 'en', name: 'English', nativeName: 'English', isActive: true },
         { code: 'es', name: 'Spanish', nativeName: 'Español', isActive: true },
@@ -54,7 +59,6 @@ export const useTranslationStore = create<TranslationStore>()(
         { code: 'de', name: 'German', nativeName: 'Deutsch', isActive: true },
       ],
       filter: initialFilter,
-      selectedKeys: [],
       editingKey: null,
       isLoading: false,
       error: null,
@@ -74,8 +78,35 @@ export const useTranslationStore = create<TranslationStore>()(
       
       deleteKey: (id) => set((state) => ({
         keys: state.keys.filter((key) => key.id !== id),
-        selectedKeys: state.selectedKeys.filter((keyId) => keyId !== id),
         editingKey: state.editingKey === id ? null : state.editingKey,
+      })),
+
+      // Project management actions
+      setProjects: (projects) => set({ projects }),
+      
+      setCurrentProject: (project) => set({ 
+        currentProject: project,
+        // Clear filter when switching projects
+        filter: { ...initialFilter, projectId: project?.id }
+      }),
+      
+      addProject: (project) => set((state) => ({
+        projects: [...state.projects, project]
+      })),
+      
+      updateProject: (id, updates) => set((state) => ({
+        projects: state.projects.map((project) =>
+          project.id === id ? { ...project, ...updates } : project
+        ),
+        currentProject: state.currentProject?.id === id 
+          ? { ...state.currentProject, ...updates }
+          : state.currentProject
+      })),
+      
+      deleteProject: (id) => set((state) => ({
+        projects: state.projects.filter((project) => project.id !== id),
+        currentProject: state.currentProject?.id === id ? null : state.currentProject,
+        keys: state.keys.filter((key) => key.projectId !== id),
       })),
 
       // Filter actions
@@ -83,25 +114,16 @@ export const useTranslationStore = create<TranslationStore>()(
         filter: { ...state.filter, ...filterUpdates }
       })),
       
-      clearFilter: () => set({ filter: initialFilter }),
+      clearFilter: () => set((state) => ({ 
+        filter: { 
+          ...initialFilter, 
+          projectId: state.currentProject?.id 
+        } 
+      })),
       
       setSearch: (search) => set((state) => ({
         filter: { ...state.filter, search }
       })),
-
-      // Selection actions
-      selectKey: (id) => set((state) => {
-        const isSelected = state.selectedKeys.includes(id);
-        return {
-          selectedKeys: isSelected 
-            ? state.selectedKeys.filter((keyId) => keyId !== id)
-            : [...state.selectedKeys, id]
-        };
-      }),
-      
-      selectMultipleKeys: (ids) => set({ selectedKeys: ids }),
-      
-      clearSelection: () => set({ selectedKeys: [] }),
 
       // Editing actions
       setEditingKey: (id) => set({ editingKey: id }),
