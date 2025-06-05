@@ -273,6 +273,59 @@ class DatabaseService:
         except Exception as e:
             raise Exception(f"Failed to get batch localizations for project {project_id}: {str(e)}")
 
+    # Project Language Management operations
+    async def add_project_language(self, project_id: str, language_code: str) -> bool:
+        """Add a language to project's supported languages"""
+        try:
+            # First get the current project
+            project = await self.get_project(project_id)
+            if not project:
+                return False
+            
+            # Check if language is already supported
+            if language_code in project.supported_languages:
+                return True  # Already supported, consider it success
+            
+            # Add the new language to supported_languages
+            updated_languages = project.supported_languages + [language_code]
+            
+            response = self.supabase.table("projects").update({
+                "supported_languages": updated_languages,
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", project_id).execute()
+            
+            return len(response.data) > 0
+        except Exception as e:
+            raise Exception(f"Failed to add language {language_code} to project {project_id}: {str(e)}")
+
+    async def remove_project_language(self, project_id: str, language_code: str) -> bool:
+        """Remove a language from project's supported languages"""
+        try:
+            # First get the current project
+            project = await self.get_project(project_id)
+            if not project:
+                return False
+            
+            # Check if language is supported
+            if language_code not in project.supported_languages:
+                return False  # Language not supported
+            
+            # Don't allow removing the default language
+            if language_code == project.default_language:
+                raise Exception(f"Cannot remove default language '{language_code}' from project")
+            
+            # Remove the language from supported_languages
+            updated_languages = [lang for lang in project.supported_languages if lang != language_code]
+            
+            response = self.supabase.table("projects").update({
+                "supported_languages": updated_languages,
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", project_id).execute()
+            
+            return len(response.data) > 0
+        except Exception as e:
+            raise Exception(f"Failed to remove language {language_code} from project {project_id}: {str(e)}")
+
 
 # Global database service instance
 db_service = DatabaseService() 

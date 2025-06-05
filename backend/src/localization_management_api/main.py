@@ -108,6 +108,44 @@ async def delete_project(
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================================
+# PROJECT LANGUAGE MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/projects/{project_id}/languages/{language_code}")
+async def add_project_language(
+    project_id: str,
+    language_code: str,
+    current_user: str = Depends(get_current_user)
+):
+    """Add a language to project's supported languages"""
+    try:
+        success = await db_service.add_project_language(project_id, language_code)
+        if not success:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return {"message": f"Language '{language_code}' added to project"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/projects/{project_id}/languages/{language_code}")
+async def remove_project_language(
+    project_id: str,
+    language_code: str,
+    current_user: str = Depends(get_current_user)
+):
+    """Remove a language from project's supported languages"""
+    try:
+        success = await db_service.remove_project_language(project_id, language_code)
+        if not success:
+            raise HTTPException(status_code=404, detail="Project not found or language not supported")
+        return {"message": f"Language '{language_code}' removed from project"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
 # TRANSLATION KEY ENDPOINTS
 # ============================================================================
 
