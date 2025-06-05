@@ -7,196 +7,128 @@ import type {
   UpdateProjectRequest
 } from '../types/translation';
 
-// Mock projects data
-const mockProjects: Project[] = [
-  {
-    id: 'proj-1',
-    name: 'E-commerce Platform',
-    description: 'Main e-commerce application translations',
-    defaultLanguage: 'en',
-    supportedLanguages: ['en', 'es', 'fr', 'de'],
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-15T10:30:00Z',
-    createdBy: 'admin',
-    translationKeyCount: 3,
-    isActive: true
-  },
-  {
-    id: 'proj-2',
-    name: 'Mobile App',
-    description: 'Mobile application translations',
-    defaultLanguage: 'en',
-    supportedLanguages: ['en', 'es', 'fr'],
-    createdAt: '2024-01-05T00:00:00Z',
-    updatedAt: '2024-01-12T14:10:00Z',
-    createdBy: 'admin',
-    translationKeyCount: 2,
-    isActive: true
-  }
-];
+// API Configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Mock data for development - Updated with projectId
-const mockTranslationKeys: TranslationKey[] = [
-  {
-    id: '1',
-    projectId: 'proj-1',
-    key: 'button.save',
-    category: 'buttons',
-    description: 'Save button text',
-    translations: {
-      en: { value: 'Save', updatedAt: '2024-01-15T10:30:00Z', updatedBy: 'john.doe' },
-      es: { value: 'Guardar', updatedAt: '2024-01-15T10:30:00Z', updatedBy: 'maria.garcia' },
-      fr: { value: 'Enregistrer', updatedAt: '2024-01-15T10:30:00Z', updatedBy: 'pierre.martin' },
-      de: { value: 'Speichern', updatedAt: '2024-01-15T10:30:00Z', updatedBy: 'hans.mueller' },
-    }
-  },
-  {
-    id: '2',
-    projectId: 'proj-1',
-    key: 'button.cancel',
-    category: 'buttons',
-    description: 'Cancel button text',
-    translations: {
-      en: { value: 'Cancel', updatedAt: '2024-01-14T15:45:00Z', updatedBy: 'john.doe' },
-      es: { value: 'Cancelar', updatedAt: '2024-01-14T15:45:00Z', updatedBy: 'maria.garcia' },
-      fr: { value: 'Annuler', updatedAt: '2024-01-14T15:45:00Z', updatedBy: 'pierre.martin' },
-      de: { value: 'Abbrechen', updatedAt: '2024-01-14T15:45:00Z', updatedBy: 'hans.mueller' },
-    }
-  },
-  {
-    id: '3',
-    projectId: 'proj-1',
-    key: 'form.email.label',
-    category: 'forms',
-    description: 'Email input label',
-    translations: {
-      en: { value: 'Email Address', updatedAt: '2024-01-13T09:20:00Z', updatedBy: 'jane.smith' },
-      es: { value: 'Dirección de Correo', updatedAt: '2024-01-13T09:20:00Z', updatedBy: 'maria.garcia' },
-      fr: { value: 'Adresse Email', updatedAt: '2024-01-13T09:20:00Z', updatedBy: 'pierre.martin' },
-      de: { value: 'E-Mail-Adresse', updatedAt: '2024-01-13T09:20:00Z', updatedBy: 'hans.mueller' },
-    }
-  },
-  {
-    id: '4',
-    projectId: 'proj-2',
-    key: 'navigation.home',
-    category: 'navigation',
-    description: 'Home navigation link',
-    translations: {
-      en: { value: 'Home', updatedAt: '2024-01-12T14:10:00Z', updatedBy: 'admin' },
-      es: { value: 'Inicio', updatedAt: '2024-01-12T14:10:00Z', updatedBy: 'maria.garcia' },
-      fr: { value: 'Accueil', updatedAt: '2024-01-12T14:10:00Z', updatedBy: 'pierre.martin' },
-    }
-  },
-  {
-    id: '5',
-    projectId: 'proj-2',
-    key: 'error.validation.required',
-    category: 'errors',
-    description: 'Required field validation error',
-    translations: {
-      en: { value: 'This field is required', updatedAt: '2024-01-11T11:30:00Z', updatedBy: 'jane.smith' },
-      es: { value: 'Este campo es obligatorio', updatedAt: '2024-01-11T11:30:00Z', updatedBy: 'maria.garcia' },
-      fr: { value: 'Ce champ est requis', updatedAt: '2024-01-11T11:30:00Z', updatedBy: 'pierre.martin' },
+// HTTP client with error handling
+class ApiClient {
+  private baseUrl: string;
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
+
+  private async request<T>(
+    endpoint: string, 
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    
+    const config: RequestInit = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('An unexpected error occurred');
     }
   }
-];
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  }
 
-// Mock API functions
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+}
+
+const apiClient = new ApiClient(API_BASE_URL);
+
+// Translation API functions
 export const translationApi = {
   // Get all translation keys (optionally filtered by project)
   getTranslationKeys: async (projectId?: string): Promise<TranslationKey[]> => {
-    await delay(500);
-    if (projectId) {
-      return mockTranslationKeys.filter(key => key.projectId === projectId);
-    }
-    return [...mockTranslationKeys];
+    const endpoint = projectId 
+      ? `/translation-keys?project_id=${encodeURIComponent(projectId)}`
+      : '/translation-keys';
+    return apiClient.get<TranslationKey[]>(endpoint);
   },
 
   // Get translation key by ID
   getTranslationKey: async (id: string): Promise<TranslationKey | null> => {
-    await delay(300);
-    return mockTranslationKeys.find(key => key.id === id) || null;
+    try {
+      return await apiClient.get<TranslationKey>(`/translation-keys/${encodeURIComponent(id)}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  // Get multiple translation keys by IDs
+  getTranslationKeysBatch: async (ids: string[]): Promise<TranslationKey[]> => {
+    return apiClient.post<TranslationKey[]>('/translation-keys/batch', ids);
   },
 
   // Create new translation key
   createTranslationKey: async (data: CreateTranslationKeyRequest & { projectId: string }): Promise<TranslationKey> => {
-    await delay(800);
-    const newKey: TranslationKey = {
-      id: Math.random().toString(36).substring(2),
-      projectId: data.projectId,
-      key: data.key,
-      category: data.category,
-      description: data.description,
-      translations: Object.entries(data.translations).reduce((acc, [lang, value]) => {
-        acc[lang] = {
-          value,
-          updatedAt: new Date().toISOString(),
-          updatedBy: 'current.user'
-        };
-        return acc;
-      }, {} as TranslationKey['translations'])
-    };
-    
-    mockTranslationKeys.push(newKey);
-    
-    // Update project translation count
-    const project = mockProjects.find(p => p.id === data.projectId);
-    if (project) {
-      project.translationKeyCount++;
-      project.updatedAt = new Date().toISOString();
-    }
-    
-    return newKey;
+    const { projectId, ...keyData } = data;
+    return apiClient.post<TranslationKey>(`/projects/${encodeURIComponent(projectId)}/translation-keys`, keyData);
   },
 
   // Update translation key
   updateTranslationKey: async (data: UpdateTranslationRequest): Promise<TranslationKey> => {
-    await delay(600);
-    const keyIndex = mockTranslationKeys.findIndex(key => key.id === data.id);
-    
-    if (keyIndex === -1) {
-      throw new Error('Translation key not found');
-    }
-
-    const updatedTranslations = { ...mockTranslationKeys[keyIndex].translations };
-    Object.entries(data.translations).forEach(([lang, value]) => {
-      updatedTranslations[lang] = {
-        value,
-        updatedAt: new Date().toISOString(),
-        updatedBy: 'current.user'
-      };
-    });
-
-    mockTranslationKeys[keyIndex] = {
-      ...mockTranslationKeys[keyIndex],
-      translations: updatedTranslations
-    };
-
-    return mockTranslationKeys[keyIndex];
+    const { id, ...updateData } = data;
+    return apiClient.put<TranslationKey>(`/translation-keys/${encodeURIComponent(id)}`, updateData);
   },
 
   // Delete translation key
   deleteTranslationKey: async (id: string): Promise<void> => {
-    await delay(400);
-    const index = mockTranslationKeys.findIndex(key => key.id === id);
-    if (index === -1) {
-      throw new Error('Translation key not found');
-    }
-    mockTranslationKeys.splice(index, 1);
+    await apiClient.delete(`/translation-keys/${encodeURIComponent(id)}`);
   },
 
-  // Get unique categories (optionally filtered by project)
+  // Get unique categories for a project
   getCategories: async (projectId?: string): Promise<string[]> => {
-    await delay(200);
-    const keys = projectId 
-      ? mockTranslationKeys.filter(key => key.projectId === projectId)
-      : mockTranslationKeys;
-    const categories = [...new Set(keys.map(key => key.category))];
-    return categories.sort();
+    if (!projectId) {
+      // If no project specified, get categories from all translation keys
+      const keys = await translationApi.getTranslationKeys();
+      const categories = [...new Set(keys.map(key => key.category))];
+      return categories.sort();
+    }
+    
+    const response = await apiClient.get<{ categories: string[] }>(`/projects/${encodeURIComponent(projectId)}/categories`);
+    return response.categories;
   }
 };
 
@@ -204,71 +136,74 @@ export const translationApi = {
 export const projectApi = {
   // Get all projects
   getProjects: async (): Promise<Project[]> => {
-    await delay(400);
-    return [...mockProjects];
+    return apiClient.get<Project[]>('/projects');
   },
 
   // Get project by ID
   getProject: async (id: string): Promise<Project | null> => {
-    await delay(300);
-    return mockProjects.find(project => project.id === id) || null;
+    try {
+      return await apiClient.get<Project>(`/projects/${encodeURIComponent(id)}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   // Create new project
   createProject: async (data: CreateProjectRequest): Promise<Project> => {
-    await delay(800);
-    const newProject: Project = {
-      id: `proj-${Math.random().toString(36).substring(2)}`,
-      name: data.name,
-      description: data.description,
-      defaultLanguage: data.defaultLanguage,
-      supportedLanguages: data.supportedLanguages,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdBy: 'current.user',
-      translationKeyCount: 0,
-      isActive: true
-    };
-    
-    mockProjects.push(newProject);
-    return newProject;
+    return apiClient.post<Project>('/projects', data);
   },
 
   // Update project
   updateProject: async (data: UpdateProjectRequest): Promise<Project> => {
-    await delay(600);
-    const projectIndex = mockProjects.findIndex(project => project.id === data.id);
-    
-    if (projectIndex === -1) {
-      throw new Error('Project not found');
-    }
-
-    mockProjects[projectIndex] = {
-      ...mockProjects[projectIndex],
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-
-    return mockProjects[projectIndex];
+    const { id, ...updateData } = data;
+    return apiClient.put<Project>(`/projects/${encodeURIComponent(id)}`, updateData);
   },
 
   // Delete project
   deleteProject: async (id: string): Promise<void> => {
-    await delay(400);
-    const index = mockProjects.findIndex(project => project.id === id);
-    if (index === -1) {
-      throw new Error('Project not found');
-    }
-    
-    // Also remove associated translation keys
-    const keysToRemove = mockTranslationKeys.filter(key => key.projectId === id);
-    keysToRemove.forEach(key => {
-      const keyIndex = mockTranslationKeys.findIndex(k => k.id === key.id);
-      if (keyIndex !== -1) {
-        mockTranslationKeys.splice(keyIndex, 1);
-      }
-    });
-    
-    mockProjects.splice(index, 1);
+    await apiClient.delete(`/projects/${encodeURIComponent(id)}`);
+  },
+
+  // Get project statistics
+  getProjectStats: async (projectId: string) => {
+    return apiClient.get(`/projects/${encodeURIComponent(projectId)}/stats`);
+  },
+
+  // Add language to project
+  addLanguage: async (projectId: string, languageCode: string): Promise<{ message: string }> => {
+    return apiClient.post(`/projects/${encodeURIComponent(projectId)}/languages/${encodeURIComponent(languageCode)}`);
+  },
+
+  // Remove language from project
+  removeLanguage: async (projectId: string, languageCode: string): Promise<{ message: string }> => {
+    return apiClient.delete(`/projects/${encodeURIComponent(projectId)}/languages/${encodeURIComponent(languageCode)}`);
+  }
+};
+
+// Localization API functions (for retrieving localized content)
+export const localizationApi = {
+  // Get localizations for a specific project and locale
+  getLocalizations: async (projectId: string, locale: string): Promise<{ projectId: string; locale: string; localizations: Record<string, string> }> => {
+    return apiClient.get(`/localizations/${encodeURIComponent(projectId)}/${encodeURIComponent(locale)}`);
+  },
+
+  // Get localizations for multiple locales
+  getLocalizationsBatch: async (projectId: string, locales: string[]): Promise<{ projectId: string; localizations: Record<string, Record<string, string>> }> => {
+    return apiClient.post(`/localizations/${encodeURIComponent(projectId)}/batch`, locales);
+  },
+
+  // Get all localizations for a project (all supported languages)
+  getAllProjectLocalizations: async (projectId: string): Promise<{ projectId: string; localizations: Record<string, Record<string, string>> }> => {
+    return apiClient.get(`/localizations/${encodeURIComponent(projectId)}`);
+  }
+};
+
+// Health check
+export const healthApi = {
+  check: async (): Promise<{ status: string; service: string }> => {
+    return apiClient.get('/health');
   }
 }; 

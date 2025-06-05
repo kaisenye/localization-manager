@@ -29,7 +29,6 @@ export default function Home() {
         {/* Sidebar */}
         <aside className="w-1/4 xl:w-1/5 p-4 bg-white dark:bg-stone-800 shadow rounded-lg mr-8 space-y-6">
           <ProjectSelector />
-          {/* // TODO: Add any other sidebar sections or components as needed */}
         </aside>
 
         {/* Main Content Area */}

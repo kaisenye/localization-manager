@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, X, Edit3, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { useUpdateTranslationKey } from '../../hooks/userTranslations';
+import { useUpdateTranslationKey } from '../../hooks/useTranslations';
 import { useTranslationStore } from '../../store/translationStore';
 import { formatDate } from '../../lib/utils';
 import type { TranslationKey } from '../../types/translation';
@@ -36,6 +36,10 @@ export function TranslationEditor({
     if (translation) {
       setValue(translation.value);
       setOriginalValue(translation.value);
+    } else {
+      // Initialize empty values for new translations
+      setValue('');
+      setOriginalValue('');
     }
   }, [translation]);
 
@@ -49,18 +53,27 @@ export function TranslationEditor({
   const handleEditStart = () => {
     setIsEditing(true);
     setEditingKey(`${translationKey.id}-${languageCode}`);
+    // Initialize value for new translations
+    if (!translation) {
+      setValue('');
+      setOriginalValue('');
+    }
     onEditStart?.();
   };
 
   const handleEditEnd = () => {
     setIsEditing(false);
     setEditingKey(null);
-    setValue(originalValue);
+    // Reset to original value or empty if no translation exists
+    setValue(translation?.value || '');
     onEditEnd?.();
   };
 
   const handleSave = async () => {
-    if (value.trim() === originalValue.trim()) {
+    const trimmedValue = value.trim();
+    
+    // Don't save if value is empty or unchanged
+    if (!trimmedValue || trimmedValue === originalValue.trim()) {
       handleEditEnd();
       return;
     }
@@ -69,11 +82,11 @@ export function TranslationEditor({
       await updateMutation.mutateAsync({
         id: translationKey.id,
         translations: {
-          [languageCode]: value.trim()
+          [languageCode]: trimmedValue
         }
       });
       
-      setOriginalValue(value.trim());
+      setOriginalValue(trimmedValue);
       setIsEditing(false);
       setEditingKey(null);
       onEditEnd?.();
@@ -93,24 +106,7 @@ export function TranslationEditor({
     }
   };
 
-  if (!translation) {
-    return (
-      <div className="group relative">
-        <div className="min-h-[2.5rem] flex items-center px-3 py-2 text-stone-400 dark:text-stone-500 italic border border-dashed border-stone-300 dark:border-stone-600 rounded">
-          No translation
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleEditStart}
-          className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
-        >
-          <Edit3 className="h-3 w-3" />
-        </Button>
-      </div>
-    );
-  }
-
+  // Check editing state first, regardless of whether translation exists
   if (isCurrentlyEditing) {
     return (
       <div className="space-y-2">
@@ -152,6 +148,27 @@ export function TranslationEditor({
         <div className="text-xs text-stone-500 dark:text-stone-400">
           Press Enter to save, Escape to cancel
         </div>
+      </div>
+    );
+  }
+
+  if (!translation) {
+    return (
+      <div className="group relative">
+        <div 
+          className="min-h-[2.5rem] flex items-center px-3 py-2 text-stone-400 dark:text-stone-500 italic border border-dashed border-stone-300 dark:border-stone-600 rounded cursor-pointer hover:border-stone-400 dark:hover:border-stone-500 hover:bg-stone-50 dark:hover:bg-stone-700/50 transition-colors"
+          onClick={handleEditStart}
+        >
+          Click to add translation...
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleEditStart}
+          className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+        >
+          <Edit3 className="h-3 w-3" />
+        </Button>
       </div>
     );
   }

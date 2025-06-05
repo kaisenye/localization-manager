@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Plus, Settings, Folder, Users } from 'lucide-react';
 import { Button } from '../ui/button';
-import { useProjects } from '../../hooks/userTranslations';
+import { useProjects } from '../../hooks/useTranslations';
 import { useTranslationStore } from '../../store/translationStore';
 import type { Project } from '../../types/translation';
 
@@ -105,10 +105,16 @@ interface ProjectCardProps {
 }
 
 function ProjectCard({ project, isSelected, onSelect }: ProjectCardProps) {
+  const handleSettingsClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the project selection
+    // Add settings functionality here later
+    console.log('Settings clicked for project:', project.name);
+  };
+
   return (
-    <button
+    <div
       onClick={onSelect}
-      className={`w-full text-left p-2 rounded-md transition-colors group ${
+      className={`w-full text-left p-2 rounded-md transition-colors group cursor-pointer ${
         isSelected
           ? 'bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100'
           : 'text-stone-600 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-800'
@@ -132,10 +138,15 @@ function ProjectCard({ project, isSelected, onSelect }: ProjectCardProps) {
             <span>{project.supportedLanguages.length} langs</span>
           </div>
         </div>
-        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+          onClick={handleSettingsClick}
+        >
           <Settings className="h-3 w-3" />
         </Button>
       </div>
-    </button>
+    </div>
   );
 } 
